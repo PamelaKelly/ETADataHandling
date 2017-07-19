@@ -3,24 +3,45 @@
 from os.path import expanduser
 
 import pandas as pd
+from geopy.distance import distance
 
 
 class Cfg:
-    in_file = expanduser('~/datasets/busdata/siri.20130101.csv')
+    in_file = expanduser('~/datasets/siri.20121106.csv')
 
+    print('Dropping unwanted columns...')
+    df = drop_columns(df)
+
+def prep_df():
+    """
+    :return: a dataframe with the appropriate column headings
+    """
+    column_names = ['timestamp', 'line_id', 'direction', 'journey_pattern_id',
+    'time_frame', 'vehicle_journey_id', 'operator', 'congestion', 'longitude',
+    'latitude', 'delay', 'block_id', 'vehicle_id', 'stop_id', 'at_stop']
+    print("Reading csv...")
+    df= pd.read_csv(Cfg.in_file, names = column_names)
+
+    print("Dropping duplicates...")
+    df.drop_duplicates(inplace=True)
+    return df
+
+def concat_dataframes(dataframes):
+    """
+    :param dataframes: a list of dataframes to be concatenated into one
+    column_names must be the same for all dataframes
+    :return: one dataframe combining all dataframes in the list
+    """
+    return(pd.concat(dataframes))
 
 def drop_columns(df):
     """
-    @args takes a dataframe
-
-    drops any columns of features that aren't useful
-
-    returns an updated dataframe
+    :param df: dataframe with all columns still included
+    :return: dataframe with unwanted columns removed
     """
-    unwanted = ['direction', 'operator', 'congestion',
-                'delay', 'stopId', 'atStop']
-    return df.drop(unwanted, axis=1)
-
+    unwanted = ['direction', 'line_id', 'operator', 'congestion',
+                'delay', 'stop_id', 'at_stop', 'block_id']
+    return df.drop(unwanted, axis=1, inplace=True)
 
 def deal_with_midinght_journeys(df):
     """
@@ -34,60 +55,68 @@ def deal_with_midinght_journeys(df):
     pass
 
 
-def sort_journeys(groupby_params, df):
+def group_df(groupby_params, df):
     """
-    Helper Function!
-
-    Divide data into groups by specified groupby_params
-    and returns a pandas groupby object.
-
-    @args takes a list of features to groupby and a dataframe.
-
+    :param groupby_params: list of feature names as strings by which to group by
+    :param df: dataframe that is to be grouped
+    :return: a pandas groupby object
     """
-    pass
+    if len(groupby_params) == 0:
+        print("You did not provide any groupby parameters")
+        return None
+    else:
+        df_grouped = df.groupby(groupby_params)
+        return df_grouped
 
+def coor():
+    prev = yield
+    running_dist = 0
+    while True:
+        next_ = yield running_dist
+        running_dist += distance(prev, next_).meters
+        prev = next_
 
-def trimming_journeys(df):
+def add_distance_all_runs(df):
     """
-    @args takes a dataframe
-
-    Trims each journey by determining the 'start' and
-    'end' of each run. Drops rows where bus is idling for
-    example. Use sort_journeys function for quick grouping.
-
+    :param df: dataframe before distance has been added
+    :return: dataframe with distances for each run
     """
-    pass
+    df['Distance'] = -1
+    vj_groups = []
+    df_grouped = group_df(['journey_pattern_id'], df)
+    for journey_name, journey_group in df_grouped:
+        vehicle_groups = group_df(['vehicle_journey_id'], journey_group)
+        for v_name, v_group in vehicle_groups:
+            c = coor()
+            next(c)
+            for index, row in v_group.iterrows():
+                dist = c.send((row['latitude'], row['longitude']))
+                v_group.set_value(index, 'Distance', dist)
+            if v_group['Distance'].max() < 36000:
+                vj_groups.append(v_group)
+
+    return concat_dataframes(vj_groups)
 
 
-def add_distance_all_runs(grouped_journeys):
+def add_mean_distance(df):
     """
-    Function to calculate the distance from terminal for every
-    run of every journey.
-
-    @args takes a pandas groupby object grouped by
-    jp_id and vj_id.
-
-    Return an updated dataframe with distance added.
+    :param df: dataframe with unique distances for all runs of journeys.
+    This function groups by stop_id so the df param should have already
+    been filtered through with the correct stop_ids input.
+    :return: dataframe with mean distance input for each instance of a
+    journey_pattern and stop_id combination.
     """
-    pass
+    updated_groups = []
+    df_grouped = group_df(['journey_pattern_id'], df)
+    for journey_name, journey_group in df_grouped:
+        df_stops = group_df(['stop_id'], journey_group)
+        for stop_name, stop_group in df_stops:
+            mean_dist = stop_group['Distance'].mean()
+            for index, row in stop_group.iterrows():
+                row['Distance'] = mean_dist
+        updated_groups.append(stop_group)
 
-
-def add_mean_distance(dataframe_all_distances):
-    """
-    Calculate the mean distance of each journeyPatternID
-    by grouping by jp_id and stop_id and getting the mean of
-    the distance feature.
-
-    @args takes a dataframe where distance for every run
-    has already been calculated and inputed.
-
-    returns a dataframe where mean distance for each stop on
-    each journey has been calculated and the mean value has
-    been assigned to every row for that stop/jp_id combination.
-
-    """
-    pass
-
+    return concat_dataframes(updated_groups)
 
 def add_nearest_stop(df):
     """
@@ -113,7 +142,7 @@ def filter_down_data(df):
     pass
 
 
-def add_time_feature(df):
+def add_time_column(df):
     """
     @args takes a dataframe.
 
@@ -125,41 +154,71 @@ def add_time_feature(df):
     """
     pass
 
-
-def add_weather(df):
+def add_datetime_column(df):
     """
-    @args takes a dataframe
-
-    Adds weather to dataframe - inc wind, rain,
-    temp and cloud.
-
-    returns an updated dataframe.
+    :param df:
+    :return:
     """
-    pass
+    df['datetime'] = df['datetime'] #do something
+    df['datetime'] = df['datetime'].astype('datetime64[ns]')
+    return df
 
-
-def add_day_of_week(df):
+def add_time_bin_column(df):
     """
-    @args takes a dataframe
-
-    adds a new feature day of the week
-
-    returns an updated dataframe.
+    :param df:
+    :return:
     """
-    pass
+    df['time_bin'] = 'null'
+    for index, row in df.iterrows():
+        hour = row['hour']
+        if hour <= 4:
+            time_bin = 'early_am'
+        elif hour >= 5 and hour <= 12:
+            time_bin = 'am'
+        elif hour >= 12 and hour <= 20:
+            time_bin = 'pm'
+        elif hour >= 21:
+            time_bin = 'late_pm'
+        df.set_value(index, 'time_bin', time_bin)
 
+    return df
 
-def add_hour_feature(df):
+def add_weather_columns(df, weather_data):
     """
-    @args takes a dataframe
-
-    Adds a feature binning timestamp into hour
-    of the day
-
-    returns an upated dataframe
-
+    :param df: a dataframe
+    :param weather_data: a json file with weather data in the appropriate format
+    :return: a dataframe with weather data added
     """
-    pass
+    df['wind'] = 0
+    df['rain'] = 0
+    df['cloud'] = 0
+    df['temp'] = 0
+    weather_options = ['wind', 'rain', 'cloud', 'temp']
+    for index, row in df.iterrows():
+        date = row['time_frame'][8:]
+        for opt in weather_options:
+            value = weather_data[date][row['time_bin']][opt]
+            df.set_value(index, opt, value)
+
+    return df
+
+
+def add_day_of_week_columns(df):
+    """
+    :param df:
+    :return:
+    """
+    df['day'] = df['datetime'].day
+    return df
+
+
+def add_hour_column(df):
+    """
+    :param df:
+    :return:
+    """
+    df['hour'] = df['datetime'].hour
+    return df
 
 
 def add_congestion_features(df):
@@ -179,20 +238,6 @@ def main():
     Run the main data cleaning and feature adding process
     and return a final data frame for use in modelling
     """
-
-    print('Reading CSV...')
-    df = pd.read_csv(Cfg.in_file,
-                     header=None,
-                     names=['timestamp', 'lineId', 'direction', 'journeyPatternId',
-                            'timeframe', 'vehicleJourneyId', 'operator', 'congestion',
-                            'lon', 'lat', 'delay', 'blockId', 'vehicleId', 'stopId',
-                            'atStop'])
-
-    print('Dropping duplicates...')
-    df.drop_duplicates(inplace=True)
-
-    print('Dropping unwanted columns...')
-    df = drop_columns(df)
 
 
 if __name__ == '__main__':
