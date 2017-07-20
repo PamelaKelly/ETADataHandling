@@ -5,15 +5,10 @@ from os.path import expanduser
 import pandas as pd
 from geopy.distance import distance
 
-from stop_lookup import nearest_stop
-
 
 class Cfg:
     in_file = expanduser('~/datasets/siri.20121106.csv')
     log_file = 'data_cleaning.log'
-
-    print('Dropping unwanted columns...')
-    df = drop_columns(df)
 
 
 def prep_df():
@@ -28,6 +23,12 @@ def prep_df():
 
     print("Dropping duplicates...")
     df.drop_duplicates(inplace=True)
+
+    print("Drop all journey_pattern_id that are null...")
+    df = df.drop(df.index['journey_pattern_id'] =='null')
+
+    print("Reduce Scale of Timestamp...")
+    df['timestamp'] = df['timestamp']//1000000
     return df
 
 
@@ -50,17 +51,29 @@ def drop_columns(df):
     return df.drop(unwanted, axis=1, inplace=True)
 
 
+def remove_nulls(row):
+    """
+    helper function for deal_with_midnight_journeys
+    :param row:
+    :return:
+    """
+    if pd.isnull(row['next_timestamp']):
+        return row['timestamp']
+    else:
+        return row['next_timestamp']
+
 def deal_with_midinght_journeys(df):
     """
-    @args takes a dataframe
-
-    deals with journeys that crossover from one day into another
-    causing erros in the time function
-
-    returns an updated dataframe.
+    :param df:
+    :return:
     """
-    pass
-
+    df['next_timestamp'] = df.groupby(['vehicle_journey_id', 'journey_pattern_id', 'time_frame'])['timestamp'].shift(-1)
+    df['next_timestamp'] = df.apply(remove_nulls, axis=1)
+    df['next_timestamp'] = df['next_timestamp'].astype(int)
+    df['between_time'] = df['next_timestamp'] - df['timestamp']
+    df=df.drop(df.index[df['between_time']>120])
+    df.drop(['next_timestamp', 'between_time'], axis=1, inplace=True)
+    return df
 
 def group_df(groupby_params, df):
     """
@@ -75,6 +88,16 @@ def group_df(groupby_params, df):
         df_grouped = df.groupby(groupby_params)
         return df_grouped
 
+
+def remove_incomplete_runs(df):
+    """
+    :param df: prepped dataframe
+    :return: df with journeys less than 45 rows removed
+    """
+    df_grouped = group_df(['vehicle_journey_id', 'time_frame', 'journey_pattern_id'])
+    df_short_journeys = df_grouped.filter(lambda x: len(x) < 45)
+    df = pd.concat([df, df_short_journeys]).drop_duplicates(keep=False)
+    return df
 
 def coor():
     prev = yield
@@ -130,54 +153,49 @@ def add_mean_distance(df):
 
 def add_nearest_stop(df):
     """
-    Updates stop_id feature based on geolocation
-    If no stop within a certain radius assigns null
-
-    @args takes a dataframe with distance already calculated
-
-    returns a dataframe with updated stop_id
+    :param df:
+    :return:
     """
-    try:
-        stop, _ = nearest_stop(df.journey_pattern_id,
-                               df.latitude,
-                               df.longitude,
+    for index, row in df.iterrows():
+        try:
+            stop, _ = nearest_stop(row['journey_pattern_id'],
+                               row['latitude'],
+                               row['longitude'],
                                max_dist=30)
-    except ValueError:
-        # we should probably use a logging module for this, but depending
-        # on how extenesively we are logging this might be easier
-        with open(Cfg.out_dir + Cfg.log_file, 'at') as f:
-            f.writeline('JourneyPatternId {} not found in trees'.format(
-                df.journey_pattern_id))
+        except ValueError:
+            # we should probably use a logging module for this, but depending
+            # on how extenesively we are logging this might be easier
+            with open(Cfg.out_dir + Cfg.log_file, 'at') as f:
+                f.writeline('JourneyPatternId {} not found in trees'.format(
+                    row['journey_pattern_id']))
 
-        stop = False
+            stop = False
 
-    df.stop_id = stop
+        df.set_value(index, 'stop_id', stop)
     return df
 
 
 def filter_down_data(df):
     """
-    Filters through the dataframe removing rows where stop_id
-    is null
-
-    @args takes a dataframe where stop_id feature has been updated
-
-    returns an updated (hopefully smaller) dataframe.
+    :param df: a dataframe with correct stop_ids already added
+    :return: a dataframe where null stop_ids are removed
     """
-    pass
+    df = df.drop(df.index['stop_id'] == False)
+    return df
 
 
 def add_time_column(df):
     """
-    @args takes a dataframe.
-
-    Uses sort_journeys for quick grouping.
-
-    Calculates the time for each run of each journey.
-
-    Returns an updated dataframe.
+    :param df:
+    :return:
     """
-    pass
+    zscore = lambda x: (x - x.min())
+    df['travel_time'] = df.groupby(['vehicle_journey_id', 'journey_pattern_id',
+                                    'time_frame'])['timestamp'].transform(zscore)
+    df = df.drop(df.index[df['travel_time']>=14400])
+    # need to refactor this to have a cut off of the last stop
+    # instead of 4 hours...
+    return df
 
 
 def add_datetime_column(df):
@@ -185,7 +203,7 @@ def add_datetime_column(df):
     :param df:
     :return:
     """
-    df['datetime'] = df['datetime']  # do something
+    df['datetime'] = pd.to_datetime(df['timestampe'], unit='s')
     df['datetime'] = df['datetime'].astype('datetime64[ns]')
     return df
 
@@ -266,6 +284,19 @@ def main():
     Run the main data cleaning and feature adding process
     and return a final data frame for use in modelling
     """
+    df = prep_df()
+    df = drop_columns(df)
+    df = add_datetime_column(df)
+    df = remove_incomplete_runs(df)
+    df = deal_with_midinght_journeys(df)
+    df = add_time_bin_column(df)
+    df = add_hour_column(df)
+    df = add_weather_columns(df)
+    df = add_day_of_week_columns(df)
+    df = add_nearest_stop(df)
+    df = add_distance_all_runs(df)
+    df = add_mean_distance(df)
+    df = add_time_column(df)
 
 
 if __name__ == '__main__':
