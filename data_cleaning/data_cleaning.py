@@ -4,10 +4,10 @@ from os.path import expanduser
 
 import pandas as pd
 from geopy.distance import distance
-
+from stop_lookup.stop_lookup import nearest_stop
 
 class Cfg:
-    in_file = expanduser('~/datasets/siri.20121106.csv')
+    #in_file = 'c:\Users\pamel\Anaconda3\envs\DataAnalytics\workspace\ETA_Data_Handling\datasets\siri.20121106.csv'
     log_file = 'data_cleaning.log'
 
 
@@ -19,13 +19,13 @@ def prep_df():
                     'time_frame', 'vehicle_journey_id', 'operator', 'congestion', 'longitude',
                     'latitude', 'delay', 'block_id', 'vehicle_id', 'stop_id', 'at_stop']
     print("Reading csv...")
-    df = pd.read_csv(Cfg.in_file, names=column_names)
+    df = pd.read_csv('~\Anaconda3\envs\DataAnalytics\workspace\ETA_Data_Handling\datasets\siri.20121106.csv', names=column_names)
 
     print("Dropping duplicates...")
     df.drop_duplicates(inplace=True)
 
     print("Drop all journey_pattern_id that are null...")
-    df = df.drop(df.index['journey_pattern_id'] =='null')
+    df = df[df.journey_pattern_id != 'null']
 
     print("Reduce Scale of Timestamp...")
     df['timestamp'] = df['timestamp']//1000000
@@ -94,7 +94,7 @@ def remove_incomplete_runs(df):
     :param df: prepped dataframe
     :return: df with journeys less than 45 rows removed
     """
-    df_grouped = group_df(['vehicle_journey_id', 'time_frame', 'journey_pattern_id'])
+    df_grouped = group_df(['vehicle_journey_id', 'time_frame', 'journey_pattern_id'], df)
     df_short_journeys = df_grouped.filter(lambda x: len(x) < 45)
     df = pd.concat([df, df_short_journeys]).drop_duplicates(keep=False)
     return df
@@ -165,9 +165,12 @@ def add_nearest_stop(df):
         except ValueError:
             # we should probably use a logging module for this, but depending
             # on how extenesively we are logging this might be easier
-            with open(Cfg.out_dir + Cfg.log_file, 'at') as f:
-                f.writeline('JourneyPatternId {} not found in trees'.format(
-                    row['journey_pattern_id']))
+
+
+            #throws error textIOWrapper object has no attribute 'writeline'
+            #with open(Cfg.log_file, 'at') as f:
+            #    f.writeline('JourneyPatternId {} not found in trees'.format(
+            #        row['journey_pattern_id']))
 
             stop = False
 
@@ -197,13 +200,15 @@ def add_time_column(df):
     # instead of 4 hours...
     return df
 
+def hour_helper(dt):
+    return dt.hour
 
 def add_datetime_column(df):
     """
     :param df:
     :return:
     """
-    df['datetime'] = pd.to_datetime(df['timestampe'], unit='s')
+    df['datetime'] = pd.to_datetime(df['timestamp'], unit='s')
     df['datetime'] = df['datetime'].astype('datetime64[ns]')
     return df
 
@@ -248,13 +253,15 @@ def add_weather_columns(df, weather_data):
 
     return df
 
+def day_helper(dt):
+    return dt.day
 
 def add_day_of_week_columns(df):
     """
     :param df:
     :return:
     """
-    df['day'] = df['datetime'].day
+    df['day'] = df['datetime'].apply(day_helper)
     return df
 
 
@@ -263,7 +270,7 @@ def add_hour_column(df):
     :param df:
     :return:
     """
-    df['hour'] = df['datetime'].hour
+    df['hour'] = df['datetime'].apply(hour_helper)
     return df
 
 
@@ -285,19 +292,19 @@ def main():
     and return a final data frame for use in modelling
     """
     df = prep_df()
-    df = drop_columns(df)
+    drop_columns(df)
     df = add_datetime_column(df)
     df = remove_incomplete_runs(df)
     df = deal_with_midinght_journeys(df)
-    df = add_time_bin_column(df)
     df = add_hour_column(df)
-    df = add_weather_columns(df)
+    df = add_time_bin_column(df)
+    #df = add_weather_columns(df)
     df = add_day_of_week_columns(df)
     df = add_nearest_stop(df)
     df = add_distance_all_runs(df)
     df = add_mean_distance(df)
     df = add_time_column(df)
-
+    df.to_csv('base_table.csv')
 
 if __name__ == '__main__':
     main()
