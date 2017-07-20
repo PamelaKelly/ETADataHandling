@@ -5,26 +5,31 @@ from os.path import expanduser
 import pandas as pd
 from geopy.distance import distance
 
+from stop_lookup import nearest_stop
+
 
 class Cfg:
     in_file = expanduser('~/datasets/siri.20121106.csv')
+    log_file = 'data_cleaning.log'
 
     print('Dropping unwanted columns...')
     df = drop_columns(df)
+
 
 def prep_df():
     """
     :return: a dataframe with the appropriate column headings
     """
     column_names = ['timestamp', 'line_id', 'direction', 'journey_pattern_id',
-    'time_frame', 'vehicle_journey_id', 'operator', 'congestion', 'longitude',
-    'latitude', 'delay', 'block_id', 'vehicle_id', 'stop_id', 'at_stop']
+                    'time_frame', 'vehicle_journey_id', 'operator', 'congestion', 'longitude',
+                    'latitude', 'delay', 'block_id', 'vehicle_id', 'stop_id', 'at_stop']
     print("Reading csv...")
-    df= pd.read_csv(Cfg.in_file, names = column_names)
+    df = pd.read_csv(Cfg.in_file, names=column_names)
 
     print("Dropping duplicates...")
     df.drop_duplicates(inplace=True)
     return df
+
 
 def concat_dataframes(dataframes):
     """
@@ -34,6 +39,7 @@ def concat_dataframes(dataframes):
     """
     return(pd.concat(dataframes))
 
+
 def drop_columns(df):
     """
     :param df: dataframe with all columns still included
@@ -42,6 +48,7 @@ def drop_columns(df):
     unwanted = ['direction', 'line_id', 'operator', 'congestion',
                 'delay', 'stop_id', 'at_stop', 'block_id']
     return df.drop(unwanted, axis=1, inplace=True)
+
 
 def deal_with_midinght_journeys(df):
     """
@@ -68,6 +75,7 @@ def group_df(groupby_params, df):
         df_grouped = df.groupby(groupby_params)
         return df_grouped
 
+
 def coor():
     prev = yield
     running_dist = 0
@@ -75,6 +83,7 @@ def coor():
         next_ = yield running_dist
         running_dist += distance(prev, next_).meters
         prev = next_
+
 
 def add_distance_all_runs(df):
     """
@@ -118,6 +127,7 @@ def add_mean_distance(df):
 
     return concat_dataframes(updated_groups)
 
+
 def add_nearest_stop(df):
     """
     Updates stop_id feature based on geolocation
@@ -127,7 +137,22 @@ def add_nearest_stop(df):
 
     returns a dataframe with updated stop_id
     """
-    pass
+    try:
+        stop, _ = nearest_stop(df.journey_pattern_id,
+                               df.latitude,
+                               df.longitude,
+                               max_dist=30)
+    except ValueError:
+        # we should probably use a logging module for this, but depending
+        # on how extenesively we are logging this might be easier
+        with open(Cfg.out_dir + Cfg.log_file, 'at') as f:
+            f.writeline('JourneyPatternId {} not found in trees'.format(
+                df.journey_pattern_id))
+
+        stop = False
+
+    df.stop_id = stop
+    return df
 
 
 def filter_down_data(df):
@@ -154,14 +179,16 @@ def add_time_column(df):
     """
     pass
 
+
 def add_datetime_column(df):
     """
     :param df:
     :return:
     """
-    df['datetime'] = df['datetime'] #do something
+    df['datetime'] = df['datetime']  # do something
     df['datetime'] = df['datetime'].astype('datetime64[ns]')
     return df
+
 
 def add_time_bin_column(df):
     """
@@ -182,6 +209,7 @@ def add_time_bin_column(df):
         df.set_value(index, 'time_bin', time_bin)
 
     return df
+
 
 def add_weather_columns(df, weather_data):
     """
