@@ -261,7 +261,7 @@ def add_day_of_week_columns(df):
     :param df:
     :return:
     """
-    df['day'] = df['datetime'].apply(day_helper)
+    df['day'] = df['datetime'].dt.weekday_name
     return df
 
 
