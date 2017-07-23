@@ -146,7 +146,7 @@ def add_mean_distance(df):
             mean_dist = stop_group['Distance'].mean()
             for index, row in stop_group.iterrows():
                 row['Distance'] = mean_dist
-        updated_groups.append(stop_group)
+            updated_groups.append(stop_group)
 
     return concat_dataframes(updated_groups)
 
