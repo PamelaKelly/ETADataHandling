@@ -298,7 +298,9 @@ def main():
     df = deal_with_midinght_journeys(df)
     df = add_hour_column(df)
     df = add_time_bin_column(df)
-    #df = add_weather_columns(df)
+    #Add weather columns
+    df_weather=pd.read_csv('weather_output.csv')
+    df = pd.merge(df, df_weather,  how='left', left_on=['time_frame','time_bin'], right_on = ['Date','time_bin'])
     df = add_day_of_week_columns(df)
     df = add_nearest_stop(df)
     df = add_distance_all_runs(df)
