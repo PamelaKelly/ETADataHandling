@@ -12,4 +12,14 @@ Use of jupyter notebook for visualation - easy error checking.
 Including a testing framework to ensure results of cleaning are 
 accurate. 
 
+In the data_cleaning.py, there are all the functions for data cleaning. 
+
+important ones: 
+add_distance_all_runs
+add_nearest_stop
+add_mean_distance 
+
+In the Data_Cleaning_2012_Week1 notebook, it doesn't have add_nearest_stop
+and add_mean_distance  function, it could use to quickly get the clean data 
+
 
