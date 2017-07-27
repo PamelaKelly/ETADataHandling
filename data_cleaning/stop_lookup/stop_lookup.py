@@ -39,6 +39,10 @@ def nearest_stop(journey_pattern_id, lat, lon, max_dist=30):
     global __TREES
     global __COORDS_STOPS
 
+    if type(journey_pattern_id) is not str:
+        raise TypeError('{} is type {}, not str'.format(
+            journey_pattern_id, type(journey_pattern_id)))
+
     try:
         t = __TREES[journey_pattern_id]
     except KeyError:

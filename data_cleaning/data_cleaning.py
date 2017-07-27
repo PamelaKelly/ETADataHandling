@@ -6,8 +6,9 @@ import pandas as pd
 from geopy.distance import distance
 from stop_lookup.stop_lookup import nearest_stop
 
+
 class Cfg:
-    #in_file = 'c:\Users\pamel\Anaconda3\envs\DataAnalytics\workspace\ETA_Data_Handling\datasets\siri.20121106.csv'
+    # in_file = 'c:\Users\pamel\Anaconda3\envs\DataAnalytics\workspace\ETA_Data_Handling\datasets\siri.20121106.csv'
     log_file = 'data_cleaning.log'
 
 
@@ -19,7 +20,8 @@ def prep_df():
                     'time_frame', 'vehicle_journey_id', 'operator', 'congestion', 'longitude',
                     'latitude', 'delay', 'block_id', 'vehicle_id', 'stop_id', 'at_stop']
     print("Reading csv...")
-    df = pd.read_csv('~\Anaconda3\envs\DataAnalytics\workspace\ETA_Data_Handling\datasets\siri.20121106.csv', names=column_names)
+    df = pd.read_csv(
+        '~\Anaconda3\envs\DataAnalytics\workspace\ETA_Data_Handling\datasets\siri.20121106.csv', names=column_names)
 
     print("Dropping duplicates...")
     df.drop_duplicates(inplace=True)
@@ -28,7 +30,7 @@ def prep_df():
     df = df[df.journey_pattern_id != 'null']
 
     print("Reduce Scale of Timestamp...")
-    df['timestamp'] = df['timestamp']//1000000
+    df['timestamp'] = df['timestamp'] // 1000000
     return df
 
 
@@ -62,18 +64,21 @@ def remove_nulls(row):
     else:
         return row['next_timestamp']
 
+
 def deal_with_midinght_journeys(df):
     """
     :param df:
     :return:
     """
-    df['next_timestamp'] = df.groupby(['vehicle_journey_id', 'journey_pattern_id', 'time_frame'])['timestamp'].shift(-1)
+    df['next_timestamp'] = df.groupby(
+        ['vehicle_journey_id', 'journey_pattern_id', 'time_frame'])['timestamp'].shift(-1)
     df['next_timestamp'] = df.apply(remove_nulls, axis=1)
     df['next_timestamp'] = df['next_timestamp'].astype(int)
     df['between_time'] = df['next_timestamp'] - df['timestamp']
-    df=df.drop(df.index[df['between_time']>120])
+    df = df.drop(df.index[df['between_time'] > 120])
     df.drop(['next_timestamp', 'between_time'], axis=1, inplace=True)
     return df
+
 
 def group_df(groupby_params, df):
     """
@@ -94,10 +99,12 @@ def remove_incomplete_runs(df):
     :param df: prepped dataframe
     :return: df with journeys less than 45 rows removed
     """
-    df_grouped = group_df(['vehicle_journey_id', 'time_frame', 'journey_pattern_id'], df)
+    df_grouped = group_df(
+        ['vehicle_journey_id', 'time_frame', 'journey_pattern_id'], df)
     df_short_journeys = df_grouped.filter(lambda x: len(x) < 45)
     df = pd.concat([df, df_short_journeys]).drop_duplicates(keep=False)
     return df
+
 
 def coor():
     prev = yield
@@ -156,23 +163,28 @@ def add_nearest_stop(df):
     :param df:
     :return:
     """
+    invalid_jpids = []
+
     for index, row in df.iterrows():
+        if row['journey_patternId'] in invalid_jpids:
+            continue
+
         try:
             stop, _ = nearest_stop(row['journey_pattern_id'],
-                               row['latitude'],
-                               row['longitude'],
-                               max_dist=30)
+                                   row['latitude'],
+                                   row['longitude'],
+                                   max_dist=30)
         except ValueError:
             # we should probably use a logging module for this, but depending
             # on how extenesively we are logging this might be easier
 
-
-            #throws error textIOWrapper object has no attribute 'writeline'
-            #with open(Cfg.log_file, 'at') as f:
+            # throws error textIOWrapper object has no attribute 'writeline'
+            # with open(Cfg.log_file, 'at') as f:
             #    f.writeline('JourneyPatternId {} not found in trees'.format(
             #        row['journey_pattern_id']))
 
             stop = False
+            invalid_jpids.append(row['journey_pattern_id'])
 
         df.set_value(index, 'stop_id', stop)
     return df
@@ -192,16 +204,18 @@ def add_time_column(df):
     :param df:
     :return:
     """
-    zscore = lambda x: (x - x.min())
+    def zscore(x): return (x - x.min())
     df['travel_time'] = df.groupby(['vehicle_journey_id', 'journey_pattern_id',
                                     'time_frame'])['timestamp'].transform(zscore)
-    df = df.drop(df.index[df['travel_time']>=14400])
+    df = df.drop(df.index[df['travel_time'] >= 14400])
     # need to refactor this to have a cut off of the last stop
     # instead of 4 hours...
     return df
 
+
 def hour_helper(dt):
     return dt.hour
+
 
 def add_datetime_column(df):
     """
@@ -253,8 +267,10 @@ def add_weather_columns(df, weather_data):
 
     return df
 
+
 def day_helper(dt):
     return dt.day
+
 
 def add_day_of_week_columns(df):
     """
@@ -298,15 +314,17 @@ def main():
     df = deal_with_midinght_journeys(df)
     df = add_hour_column(df)
     df = add_time_bin_column(df)
-    #Add weather columns
-    df_weather=pd.read_csv('weather_output.csv')
-    df = pd.merge(df, df_weather,  how='left', left_on=['time_frame','time_bin'], right_on = ['Date','time_bin'])
+    # Add weather columns
+    df_weather = pd.read_csv('weather_output.csv')
+    df = pd.merge(df, df_weather,  how='left', left_on=[
+                  'time_frame', 'time_bin'], right_on=['Date', 'time_bin'])
     df = add_day_of_week_columns(df)
     df = add_nearest_stop(df)
     df = add_distance_all_runs(df)
     df = add_mean_distance(df)
     df = add_time_column(df)
     df.to_csv('base_table.csv')
+
 
 if __name__ == '__main__':
     main()
