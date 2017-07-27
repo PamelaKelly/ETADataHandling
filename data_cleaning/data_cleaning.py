@@ -93,9 +93,17 @@ class Clean():
         df_short_journeys = df_grouped.filter(lambda x: len(x) < 45)
         self.__df = pd.concat([self.__df, df_short_journeys]).drop_duplicates(keep=False)
 
+def unsure():
+    """
+    some things from the notebook that I'm not sure what they do
+    """
+    # Only keep the first row for every trip at the same Stop(keep both at or not_at stop)
+    df = df.drop_duplicates(['Vehicle_Journey_ID', 'Journey_Pattern_ID', 'Date', 'Stop_ID', 'At_Stop'])
+
 
 def main():
-    data = ''
+    data = ['datasets/siri.20121106.csv', 'datasets/siri.20121107.csv', 'datasets/siri.20121108.csv', 'datasets/siri.20121109.csv',
+            'datasets/siri.20121110.csv', 'datasets/siri.20121111.csv', 'datasets/siri.20121112.csv']
     clean_df = Clean(data)
     clean_df.prep_df()
     clean_df.drop_columns()
