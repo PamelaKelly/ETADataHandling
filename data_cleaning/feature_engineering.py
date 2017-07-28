@@ -5,6 +5,7 @@ Script to transform raw features and implement derived features
 import pandas as pd
 from geopy.distance import distance
 from stop_lookup.stop_lookup import nearest_stop
+import time
 
 class Base_Table():
     def __init__(self, cleaned_df):
@@ -44,7 +45,7 @@ class Base_Table():
         :return: updates stop_id feature to closest stop id based on location and distance to that stop
         """
         invalid_journey_patterns = []
-        for index, row in self.__df().iterrows():
+        for index, row in self.__df.iterrows():
             try:
                 stop, distance = nearest_stop(row['journey_pattern_id'],
                                               row['latitude'],
@@ -65,7 +66,10 @@ class Base_Table():
         """
         :return: updates dataframe removing stop_ids that are null
         """
-        self.__df = self.__df.drop(self.__df.index['stop_id'] == False)
+        self.__df = self.__df.loc[(self.__df['stop_id'] != False)]
+        self.__df = self.__df.loc[(self.__df['stop_id'] != 'null')]
+        self.__df = self.__df.loc[(self.__df['stop_id'] != None)]
+        self.__df.dropna(axis=0, how='any', subset=['stop_id'])
 
     def add_datetime(self):
         self.__df['datetime'] = pd.to_datetime(self.__df['timestamp'], unit='s')
@@ -75,7 +79,7 @@ class Base_Table():
         self.__df['hour'] = self.__df['datetime'].dt.hour
 
     def add_day(self):
-        self.__df['day'] = self.__df['day'].dt.weekday_name
+        self.__df['day'] = self.__df['datetime'].dt.weekday_name
 
     def add_weekend(self):
         self.__df['weekend'] = self.__df['day'].map({'Monday': 0, 'Tuesday': 0, 'Wednesday': 0, 'Thursday': 0,
@@ -92,11 +96,11 @@ class Base_Table():
             return 'late_pm'
 
     def add_time_bin(self):
-        self.__df['time_bin'] = df['hour'].map(lambda x: self.time_bin_helper(x))
+        self.__df['time_bin'] = self.__df['hour'].map(lambda x: self.time_bin_helper(x))
 
     def add_travel_time(self):
         zscore = lambda x: (x - x.min())
-        self.__df['travel_time'] = self.__df.groupby(['vehicle_journey_id', 'journey_pattern_id', 'time_frame'])['Timestamp'].transform(zscore)
+        self.__df['travel_time'] = self.__df.groupby(['vehicle_journey_id', 'journey_pattern_id', 'time_frame'])['timestamp'].transform(zscore)
 
 
     def add_weather(self, weather_data):
@@ -113,26 +117,41 @@ class Base_Table():
         """
         pass
 
+    def get_df(self):
+        return self.__df
+
 def main():
     """
     Run the feature engineering process
     """
-    data = ''
+    print(time.time())
+    data = '../datasets/output/files/clean_df.csv'
+    print("Process Beginning")
+    print("Reading Clean CSV")
     clean_df = pd.read_csv(data)
     base_table = Base_Table(clean_df)
+    print("Adding datetime")
     base_table.add_datetime()
+    print("Adding Day")
     base_table.add_day()
+    print("Adding Hour")
     base_table.add_hour()
+    print("Adding Time Bin")
     base_table.add_time_bin()
+    print("Adding Weekend Boolean")
     base_table.add_weekend()
+    print("Adding Distance")
     base_table.add_distance_feature()
-    base_table.update_stop_id()
+    print("Updating Stop Id")
+    base_table.add_nearest_stop_distance()
+    print("Filtering Data")
     base_table.remove_null_stops()
+    print("Adding Travel Time")
     base_table.add_travel_time()
+    print("Adding Congestion")
     base_table.congestion_feature()
-    base_table.add_weekend()
-    base_table.to_csv('base_table.csv')
-    return base_table
+    bs = base_table.get_df()
+    bs.to_csv('../datasets/output_files/base_table.csv')
+    return bs
 
-if __name__ == 'main':
-    main()
+main()

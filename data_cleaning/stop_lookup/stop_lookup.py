@@ -5,8 +5,8 @@ from geopy.distance import distance
 
 
 class __Cfg:
-    tree_file = dirname(__file__) + '/stops_tree.pkl'
-    stop_coords_file = dirname(__file__) + '/stop_coords_id.pkl'
+    tree_file = dirname(__file__) + '\data\stops_tree.pkl'
+    stop_coords_file = dirname(__file__) + '\data\stop_coords_id.pkl'
 
 
 class InvalidStopCoordinatesError(Exception):

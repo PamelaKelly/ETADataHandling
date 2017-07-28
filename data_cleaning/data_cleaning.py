@@ -3,34 +3,26 @@ File to consolidate data cleaning process for the ETA
 Dublin Bus Project
 """
 import pandas as pd
-import json
+import time
 
 class Clean():
-    def __init__(self, data_source):
+    def __init__(self, data_source, column_names):
         """
         :param data_source: filename or list of filenames
         :return initialises a data frame from the data sources provided
         """
-        if type(data_source) == '<string>':
-            # data source is a filename
-            # read file as dataframe
-            self.__df = pd.read_csv(data_source)
-        elif type(data_source) == '<list>':
-            self.__df = pd.concat(data_source)
-        else:
-            print("You did not provide a valid data source")
-            return None
+        for file in data_source:
+            frames = []
+            df_temp = pd.read_csv(file, names=column_names)
+            frames.append(df_temp)
+
+        self.__df = pd.concat(frames)
 
     def prep_df(self):
         """
         :return: a dataframe without duplicates or null values
         and timestamp converted to seconds from ms
         """
-        # define columns names
-        column_names = ['timestamp', 'line_id', 'direction',
-                        'journey_pattern_id', 'time_frame', 'vehicle_journey_id',
-                        'operator', 'congestion', 'longitude', 'latitude',
-                        'delay', 'block_id', 'vehicle_id', 'stop_id', 'at_stop']
 
         # drop duplicate rows in dataframe
         self.__df.drop_duplicates(inplace=True)
@@ -40,6 +32,10 @@ class Clean():
 
         #reduce timestamp from milliseconds to seconds
         self.__df['timestamp'] = self.__df['timestamp'] // 1000000
+
+        # fix columns with mixed data types
+        # how to fix stop id when nulls still present
+        self.__df['journey_pattern_id'] = self.__df['journey_pattern_id'].astype(str)
 
     def drop_columns(self):
         """
@@ -51,7 +47,8 @@ class Clean():
                     'at_stop', 'block_id']
 
         # drop unwanted columns
-        self.__df = self.__df.drop(unwanted, axis=1, inplace=True)
+        self.__df.drop(unwanted, axis=1, inplace=True)
+        print(type(self.__df))
 
     def midnight_journeys_helper(self, row):
         """
@@ -75,7 +72,7 @@ class Clean():
                                                          'journey_pattern_id', 'time_frame'])['timestamp'].shift(-1)
 
         # how are nulls removed here?
-        self.__df['next_timestamp'] = self.__df.apply(self.midnight_journeys_helper(), axis=1)
+        self.__df['next_timestamp'] = self.__df.apply(self.midnight_journeys_helper, axis=1)
 
         self.__df['next_timestamp'] = self.__df['next_timestamp'].astype(int)
         # time between rows
@@ -93,24 +90,35 @@ class Clean():
         df_short_journeys = df_grouped.filter(lambda x: len(x) < 45)
         self.__df = pd.concat([self.__df, df_short_journeys]).drop_duplicates(keep=False)
 
+    def get_df(self):
+        return self.__df
+
 def unsure():
     """
     some things from the notebook that I'm not sure what they do
     """
     # Only keep the first row for every trip at the same Stop(keep both at or not_at stop)
-    df = df.drop_duplicates(['Vehicle_Journey_ID', 'Journey_Pattern_ID', 'Date', 'Stop_ID', 'At_Stop'])
-
+    #df = df.drop_duplicates(['Vehicle_Journey_ID', 'Journey_Pattern_ID', 'Date', 'Stop_ID', 'At_Stop'])
+    pass
 
 def main():
-    data = ['datasets/siri.20121106.csv', 'datasets/siri.20121107.csv', 'datasets/siri.20121108.csv', 'datasets/siri.20121109.csv',
-            'datasets/siri.20121110.csv', 'datasets/siri.20121111.csv', 'datasets/siri.20121112.csv']
-    clean_df = Clean(data)
+    print(time.time())
+    print("Process Beginning")
+    print("Reading files")
+    data = ['../datasets/input_files/siri.20121106.csv', '../datasets/input_files/siri.20121107.csv', '../datasets/input_files/siri.20121108.csv', '../datasets/input_files/siri.20121109.csv',
+            '../datasets/input_files/siri.20121110.csv', '../datasets/input_files/siri.20121111.csv', '../datasets/input_files/siri.20121112.csv']
+    column_names = ['timestamp', 'line_id', 'direction', 'journey_pattern_id', 'time_frame', 'vehicle_journey_id',
+                    'operator', 'congestion', 'longitude', 'latitude', 'delay', 'block_id', 'vehicle_id', 'stop_id', 'at_stop']
+    print("Cleaning Data")
+    clean_df = Clean(data, column_names)
     clean_df.prep_df()
     clean_df.drop_columns()
     clean_df.midnight_journeys()
     clean_df.remove_incomplete_runs()
-    clean_df.to_csv('clean_df.csv')
+    cleaned_df = clean_df.get_df()
+    cleaned_df.to_csv('../datasets/output_files/clean_df.csv')
+    print("Done")
+    print(time.time())
     return clean_df
 
-if __name__ == 'main':
-    main()
+main()
