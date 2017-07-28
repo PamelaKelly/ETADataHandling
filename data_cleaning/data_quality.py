@@ -17,7 +17,7 @@ class Quality_Check():
         print("Pass")
 
 def main():
-    data = pd.read_csv('../datasets/base_table.csv')
+    data = pd.read_csv('../datasets/output_files/base_table.csv')
     qc = Quality_Check(data)
     qc.check_nulls()
 

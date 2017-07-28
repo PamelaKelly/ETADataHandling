@@ -44,32 +44,33 @@ class Base_Table():
         """
         :return: updates stop_id feature to closest stop id based on location and distance to that stop
         """
-        invalid_journey_patterns = []
         for index, row in self.__df.iterrows():
             try:
                 stop, distance = nearest_stop(row['journey_pattern_id'],
                                               row['latitude'],
                                               row['longitude'],
                                               max_dist=30)
-
+                if stop == None or distance == None:
+                    self.__df.set_value(index, 'distance_from_stop', -1)
+                    # drop row ?
+                    #self.__df.drop(index, inplace=True)
+                    continue
                 # max distance = 30 because AVL is only accurate within 30 meters
             except ValueError:
-                stop = False
-                distance = False
-                # why make the whole journey invalid?
-                invalid_journey_patterns.append(row['journey_pattern_id'])
+                # drop row ?
+                #self.__df.drop(index, inplace=True)
+                continue
 
-        self.__df.set_value(index, 'stop_id', stop)
-        self.__df.set_value(index, 'distance_from_stop', distance)
+            self.__df.set_value(index, 'stop_id', stop)
+            self.__df.set_value(index, 'distance_from_stop', distance)
 
     def remove_null_stops(self):
         """
         :return: updates dataframe removing stop_ids that are null
         """
-        self.__df = self.__df.loc[(self.__df['stop_id'] != False)]
-        self.__df = self.__df.loc[(self.__df['stop_id'] != 'null')]
-        self.__df = self.__df.loc[(self.__df['stop_id'] != None)]
-        self.__df.dropna(axis=0, how='any', subset=['stop_id'])
+        self.__df = self.__df.loc[(self.__df['distance_from_stop'] != -1)]
+        self.__df = self.__df.loc[(self.__df['distance_from_stop'] != None)]
+        self.__df.dropna(axis=0, how='any', subset=['distance_from_stop'])
 
     def add_datetime(self):
         self.__df['datetime'] = pd.to_datetime(self.__df['timestamp'], unit='s')
@@ -102,14 +103,12 @@ class Base_Table():
         zscore = lambda x: (x - x.min())
         self.__df['travel_time'] = self.__df.groupby(['vehicle_journey_id', 'journey_pattern_id', 'time_frame'])['timestamp'].transform(zscore)
 
-
     def add_weather(self, weather_data):
         """
         :param weather_data: dictionary containing weather data
         :return: an updated dataframe with weather information
         """
         self.__df = pd.merge(self.__df, weather_data, how='left', left_on=['time_frame', 'time_bin'], right_on = ['time_frame', 'time_bin'])
-
 
     def congestion_feature(self):
         """
@@ -125,10 +124,11 @@ def main():
     Run the feature engineering process
     """
     print(time.time())
-    data = '../datasets/output/files/clean_df.csv'
+    data = '../datasets/between_phase/clean_df.csv'
     print("Process Beginning")
     print("Reading Clean CSV")
-    clean_df = pd.read_csv(data)
+    clean_df = pd.read_csv(data, dtype={"journey_pattern_id": str})
+    print(clean_df.shape)
     base_table = Base_Table(clean_df)
     print("Adding datetime")
     base_table.add_datetime()

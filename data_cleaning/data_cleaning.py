@@ -4,6 +4,7 @@ Dublin Bus Project
 """
 import pandas as pd
 import time
+import numpy as np
 
 class Clean():
     def __init__(self, data_source, column_names):
@@ -11,9 +12,9 @@ class Clean():
         :param data_source: filename or list of filenames
         :return initialises a data frame from the data sources provided
         """
+        frames = []
         for file in data_source:
-            frames = []
-            df_temp = pd.read_csv(file, names=column_names)
+            df_temp = pd.read_csv(file, names=column_names, dtype={'journey_pattern_id': str})
             frames.append(df_temp)
 
         self.__df = pd.concat(frames)
@@ -29,13 +30,14 @@ class Clean():
 
         # drop journey pattern ids that are null
         self.__df = self.__df[self.__df.journey_pattern_id != 'null']
+        self.__df = self.__df[self.__df.stop_id != 'null']
 
         #reduce timestamp from milliseconds to seconds
         self.__df['timestamp'] = self.__df['timestamp'] // 1000000
 
         # fix columns with mixed data types
         # how to fix stop id when nulls still present
-        self.__df['journey_pattern_id'] = self.__df['journey_pattern_id'].astype(str)
+        self.__df['stop_id'] = self.__df['stop_id'].astype(int)
 
     def drop_columns(self):
         """
@@ -48,7 +50,7 @@ class Clean():
 
         # drop unwanted columns
         self.__df.drop(unwanted, axis=1, inplace=True)
-        print(type(self.__df))
+        print("JP CHECK: ", self.__df['journey_pattern_id'].head(10))
 
     def midnight_journeys_helper(self, row):
         """
@@ -81,6 +83,7 @@ class Clean():
         # what does this line do?
         self.__df = self.__df.drop(self.__df.index[self.__df['between_time'] > 120])
         self.__df.drop(['next_timestamp', 'between_time'], axis=1, inplace=True)
+        print("JP CHECK: ", self.__df['journey_pattern_id'].head(10))
 
     def remove_incomplete_runs(self):
         """
@@ -89,6 +92,7 @@ class Clean():
         df_grouped = self.__df.groupby(['vehicle_journey_id', 'time_frame', 'journey_pattern_id'])
         df_short_journeys = df_grouped.filter(lambda x: len(x) < 45)
         self.__df = pd.concat([self.__df, df_short_journeys]).drop_duplicates(keep=False)
+        print("JP CHECK: ", self.__df['journey_pattern_id'].head(10))
 
     def get_df(self):
         return self.__df
