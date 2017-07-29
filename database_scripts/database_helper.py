@@ -3,7 +3,7 @@ import sqlalchemy
 from sqlalchemy import create_engine, Column, Integer, String
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.dialects.mysql.types import FLOAT, VARCHAR, TIME
+from sqlalchemy.dialects.mysql.types import FLOAT, TIME
 import json
 import os
 
@@ -242,3 +242,91 @@ class database_setup():
         engine = self.db_engine()
         Base.metadata.create_all(engine)
         engine.dispose()
+
+
+################################# back up
+
+    def drop_table(self, table):
+        try:
+            engine = self.db_engine()
+            sql = "DROP TABLE `" + str(table) + "`;"
+            engine.execute(sql)
+        except Exception as e:
+            print("Error in the drop_table() function")
+            print("Error type: ", type(e))
+            print("Error details: ", e)
+            # throw e
+        finally:
+            engine.dispose()
+
+    def delete(self, table, column, value):
+        pass
+
+    def get_tables(self, tables):
+        try:
+            full_table_description = []
+            engine = self.db_engine()
+            sql = "SHOW TABLES;"
+            table_result = engine.execute(sql).fetchall()
+            print("Tables in this Database: \n", table_result)
+            if tables != None:
+                for table in tables:
+                    sql = "DESCRIBE " + table + ";"
+                    result = engine.execute(sql).fetchall()
+                    print("Table Details: \n", result)
+                    full_table_description.append(result)
+        except Exception as e:
+            print("Error in the get_tables() function")
+            print("Error Type: ", type(e))
+            print("Error Details: ", e)
+        finally:
+            return full_table_description
+            engine.dispose()
+
+
+    def __init__(self, password_file, URI, PORT, USERNAME, DB_NAME):
+        self.__password_file = password_file
+        self.__URI = URI
+        self.__PORT = PORT
+        self.__USERNAME = USERNAME
+        self.__DB_NAME = DB_NAME
+        self.__tables = []
+
+    def get_uri(self):
+        return self.__URI
+
+    def get_dbname(self):
+        return self.__DB_NAME
+
+    def get_port(self):
+        return self.__PORT
+
+    def get_table_names(self):
+        return self.__tables
+
+    def set_uri(self, new_uri):
+        self.__URI = new_uri
+        return self.__URI
+
+    def set_port(self, new_port):
+        self.__PORT = new_port
+        return self.__PORT
+
+    def set_username(self, new_username):
+        self.__USERNAME = new_username
+        return self.__USERNAME
+
+    def set_db_name(self, new_db_name):
+        self.__DB_NAME = new_db_name
+        return self.__DB_NAME
+
+    def db_engine(self):
+        fh = open(self.__password_file)
+        self.__PASSWORD = fh.readline().strip()
+        db_engine = create_engine("mysql+pymysql://{}:{}@{}:{}/{}".format(self.__USERNAME, self.__PASSWORD,
+                self.__URI, self.__PORT, self.__DB_NAME))
+        return db_engine
+
+    def __str__(self):
+        return "Database Name: " + self.__DB_NAME
+
