@@ -48,3 +48,54 @@ def connecting_stops_two_queries(origin):
 
 connecting_stops_two_queries(375)
 
+def connecting_stops_single_query(origin):
+    eng = db.connect_engine()
+    s = select([routes]).where(and_(
+        routes.c.journey_pattern.in_(
+            select([routes.c.journey_pattern]).where(routes.c.stop_id==origin)
+        ),
+
+    ))
+
+    s = select([routes]).where(and_(
+        routes.c.position_on_route > (
+            select([routes.c.position_on_route]).where(
+                routes.c.stop_id==origin)
+            ),
+            routes.c.journey_pattern.in_(
+            select([routes.c.journey_pattern]).where(routes.c.stop_id==origin)
+            )
+        )
+    )
+    res = eng.execute(s).fetchall()
+    for row in res:
+        print(row)
+    eng.dispose()
+    return res
+
+def connections_inefficient(origin):
+    res_list = []
+    eng = db.connect_engine()
+    s = select([routes]).where(and_(
+        routes.c.journey_pattern.in_(
+            select([routes.c.journey_pattern]).where(routes.c.stop_id==origin)
+        ),
+        routes.c.position_on_route > (
+            select([routes.c.position_on_route]).where(and_(
+            routes.c.journey_pattern.in_(
+                select([routes.c.journey_pattern]).where(routes.c.stop_id==origin)
+            ),
+            routes.c.stop_id==origin)
+        )
+    )
+    )
+    ).order_by('position_on_route')
+    res = eng.execute(s).fetchall()
+    for row in res:
+        print(row)
+    res_list.append(res)
+    for r in res_list:
+        for row in r:
+            print(row)
+    eng.dispose()
+    return res

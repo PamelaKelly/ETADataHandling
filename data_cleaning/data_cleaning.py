@@ -94,6 +94,10 @@ class Clean():
         self.__df = pd.concat([self.__df, df_short_journeys]).drop_duplicates(keep=False)
         print("JP CHECK: ", self.__df['journey_pattern_id'].head(10))
 
+    def handle_outlier_journeys(self):
+        """Function to deal with outlier journeys - very long or very far"""
+        pass
+
     def get_df(self):
         return self.__df
 
@@ -120,8 +124,9 @@ def main():
     clean_df.midnight_journeys()
     clean_df.remove_incomplete_runs()
     cleaned_df = clean_df.get_df()
+    print("Writing to file...")
     cleaned_df.to_csv('../datasets/output_files/clean_df.csv')
-    print("Done")
+    print("Finishing up...")
     print(time.time())
     return clean_df
 

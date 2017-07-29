@@ -1,5 +1,5 @@
 """ Python Module for Dealing with our Amazon RDS Instance """
-import sqlalchemy
+
 from sqlalchemy import create_engine, Column, Integer, String
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
@@ -64,10 +64,23 @@ class Timetable(Base):
 class database_setup():
 
     def __init__(self, db_mang):
-        # takes a databse manager object
+        """
+        :param db_mang: a database manager object
+        """
         self.__db = db_mang
 
-    def insert_stops(self, stop_info, year):
+    def create_tables(self):
+        """A function to create the tables defined above """
+        eng = self.__db.connect_engine()
+        Base.metadata.create_all(eng)
+        eng.dispose()
+
+    def populate_stops(self, stop_info, year):
+        """
+        :param stop_info: location for a file that can be loaded as json
+        :param year: the year
+        updates the stops table with all the stops in the stop_info file
+        """
         engine = self.__db.connect_engine()
         Session = sessionmaker(bind=engine)
         session = Session()
@@ -93,7 +106,11 @@ class database_setup():
         session.close()
         engine.dispose()
 
-    def insert_routes(self, route_info):
+    def populate_routes(self, route_info):
+        """
+        :param route_info: location for a file that can be loaded as json
+        updates the routes table with all the stops in the stop_info file
+        """
         engine = self.__db.connect_engine()
         Session = sessionmaker(bind=engine)
         session = Session()
@@ -122,18 +139,19 @@ class database_setup():
         session.close()
         engine.dispose()
 
+    def send_query(self, query):
+        """Sends a query to the database given the sql query"""
+        eng = self.__db.connect_engine()
+        res = eng.execute(query).fetchall()
+        eng.dispose()
+        return res
+
+
 def main():
-    sql = "DELETE from routes WHERE TRUE;"
+    """Run all steps necessary to create and populate the database"""
     db_obj = database_manager.database_manager("password.txt", "eta.cb0ofqejduea.eu-west-1.rds.amazonaws.com", "3306", "eta", "eta")
-    eng = db_obj.connect_engine()
-    eng.execute(sql)
-    sql2 = "SELECT * from routes;"
-    res2 = eng.execute(sql2).fetchall()
-    print(res2)
-    eng.dispose()
-
     db = database_setup(db_obj)
-    db.insert_routes('../datasets/output_files/routes.txt')
-    #db.insert_stops()
+    db.populate_stops('../datasets/clean_stops_2017.txt', 2017)
+    db.populate_stops('../datasets/clean_stops_2012.txt', 2012)
+    db.populate_routes('../datasets/routes.txt')
 
-main()
