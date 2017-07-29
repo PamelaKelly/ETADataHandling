@@ -27,17 +27,24 @@ def single_route_ordered():
     eng.dispose()
     return res
 
-def connecting_stops(origin):
-    """Selects all subsequent connecting stops on a route in order"""
+def connecting_stops_two_queries(origin):
+    """Selects all subsequent connecting stops on a single route for a given origin"""
     eng = db.connect_engine()
-    s = select([routes]).where(and_(routes.c.journey_pattern=='00010001', routes.c.position_on_route >
-        (select([routes.c.position_on_route]).where(and_(routes.c.journey_pattern=='00010001', routes.c.stop_id==origin))))).order_by('position_on_route')
-    res = eng.execute(s).fetchall()
-    for row in res:
-        print(row)
+    res_list = []
+    s_jp = select([routes.c.journey_pattern]).where(routes.c.stop_id==origin)
+    journeys = eng.execute(s_jp).fetchall()
+    for jp in journeys:
+        s = select([routes]).where(and_(routes.c.journey_pattern == jp[0], routes.c.position_on_route >
+                                        (select([routes.c.position_on_route]).where(
+                                            and_(routes.c.journey_pattern == jp[0],
+                                                 routes.c.stop_id == origin))))).order_by('position_on_route')
+        res = eng.execute(s).fetchall()
+        res_list.append(res)
+    for r in res_list:
+        for row in r:
+            print(row)
     eng.dispose()
-    return res
+    return res_list
 
-
-connecting_stops(374)
+connecting_stops_two_queries(375)
 
