@@ -23,54 +23,63 @@ def scrape_timetable(page):
 
     flag = False
     for word in route_breakdown:
-        if word != 'Towards' and flag == False:
+        if word == 'From':
+            continue
+        elif word != 'Towards' and flag == False:
             terminus1 += (word + " ")
         elif word == 'Towards':
             flag = True
             continue
         else:
             terminus2 += (word + " ")
+
+    print("T1: ", terminus1)
+    print("T2: ", terminus2)
     direction1 = "From " + terminus1 + " to " + terminus2
     direction0 = "From " + terminus2 + " to " + terminus1
+    print("d1: ", direction1)
+    print("d0: ", direction0)
 
-    route_variations = {}
-    route_vars = tree.xpath("//div[contains(.,'Route Variations')]/p/text()")
-
-    for route in route_vars:
-        if len(route) < 3:
-            continue
-        else:
+    route_variations = tree.xpath("//div[contains(.,'Route Variations')]/p/text()")
+    route_vars = []
+    for route in route_variations:
+        if len(route) > 3:
             code = route[:1]
-            variation = route[3:]
-            route_variations[code] = {"variation_description": variation, "times": []}
+            route_vars.append(code)
+
+    print(route_vars)
 
     timetable = {
         "direction1": {
+            "description": direction1,
             "weekday": [],
             "saturday": [],
-            "sunday": []
+            "sunday": [],
+            "variations": {}
         },
         "direction0": {
+            "description": direction0,
             "weekday": [],
             "saturday": [],
-            "sunday": []
+            "sunday": [],
+            "variations": {}
         },
-        "variations": {}
     }
+
 
     timetables = tree.xpath("//div[@class='timetable_horiz_display']//text()")
     for t in timetables:
         t = t.strip()
-        print(t)
 
     nums = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
     flag = ""
     half_way_point = int(len(timetables)/2)
-    direction1 = timetables[:half_way_point]
-    direction0 = timetables[half_way_point:]
+    direction_1 = timetables[:half_way_point]
+    direction_0 = timetables[half_way_point:]
     last_entry = ""
 
-    ts = [direction0, direction1]
+    ts = [direction_0, direction_1]
+
 
     for i in range(len(ts)):
         direction = "direction0" if i == 0 else "direction1"
@@ -91,18 +100,25 @@ def scrape_timetable(page):
                     if flag == "M":
                         timetable[direction]["weekday"].append(t)
                         last_entry = "weekday"
-                    elif flag == "ST" and t[0] in nums:
+                    elif flag == "ST":
                         timetable[direction]["saturday"].append(t)
                         last_entry = "saturday"
-                    elif flag == "SN" and t[0] in nums:
+                    elif flag == "SN":
                         timetable[direction]["sunday"].append(t)
                         last_entry = "sunday"
-                elif t in route_variations.keys():
+                elif t in route_vars:
+                    if t in timetable[direction]["variations"].keys():
+                        pass
+                    else:
+                        timetable[direction]["variations"][t] = {"weekday": [], "saturday": [], "sunday": []}
                     last_time = timetable[direction][last_entry].pop()
-                    last_elem = len(route_variations[t]["times"])
-                    route_variations[t]["times"].append(last_time)
+                    if flag == "M":
+                        timetable[direction]["variations"][t]["weekday"].append(last_time)
+                    elif flag == "ST":
+                        timetable[direction]["variations"][t]["saturday"].append(last_time)
+                    elif flag == "SN":
+                        timetable[direction]["variations"][t]["sunday"].append(last_time)
 
-    timetable["variations"] = route_variations
     for t in timetable:
         print(timetable[t])
     return timetable, line_id
@@ -147,5 +163,5 @@ for l in links:
 # therefore I will need to extract the url from the href in the main list of timetables page
 
 print(len(all_timetables))
-with open('timetables.txt', 'w') as f:
+with open('../datasets/output_files/timetables.txt', 'w') as f:
     json.dump(all_timetables, f)

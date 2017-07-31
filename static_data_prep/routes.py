@@ -7,6 +7,7 @@ Takes one week of data - pre cleaned
 
 import pandas as pd
 import json
+import re
 
 
 class Routes():
@@ -22,12 +23,16 @@ class Routes():
         routes = {}
         for j_name, j_group in df_grouped:
             routes[str(j_name)] = {}
+            line_id = str(j_name)[1:4:]
+            line_id = re.sub('0', '', line_id)
+            print(line_id)
+            routes[str(j_name)]["line_id"] = line_id
 
         df_grouped = self.__df.groupby(['journey_pattern_id', 'stop_id'])
         for name, group in df_grouped:
             try:
                 min_idx = group.ix[group['distance_from_stop'].idxmin(skipna=True)]
-                dist = min_idx['Distance']
+                dist = min_idx['distance']
                 journey = min_idx['journey_pattern_id']
                 stop = min_idx['stop_id']
                 routes[str(journey)][str(stop)] = float(dist)
@@ -41,8 +46,10 @@ class Routes():
         return self.__routes
 
 def main():
-    data = pd.read_csv('../datasets/output_files/base_table.csv', dtype={"journey_pattern_id": str})
-    data = data.dropna(how='any', subset=['stop_id'])
+    data = pd.read_csv('../datasets/between_phase/week_1_2012_nearest_stop.csv', dtype={"journey_pattern_id": str})
+    print(data.columns)
+    data = data.ix[1:]
+    data['stop_id'] = data['stop_id'].astype(int)
     routes = Routes(data)
     routes.get_unique_routes()
     routes_dict = routes.get_routes()

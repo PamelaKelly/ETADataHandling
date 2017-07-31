@@ -4,7 +4,6 @@ Script to transform raw features and implement derived features
 
 import pandas as pd
 from geopy.distance import distance
-from stop_lookup.stop_lookup import nearest_stop
 import time
 
 class Base_Table():
@@ -39,38 +38,6 @@ class Base_Table():
             vehicle_journey_groups.append(group)
         # removed functionality to deal with long journeys - need better way to do this
         self.__df = pd.concat(vehicle_journey_groups)
-
-    def add_nearest_stop_distance(self):
-        """
-        :return: updates stop_id feature to closest stop id based on location and distance to that stop
-        """
-        for index, row in self.__df.iterrows():
-            try:
-                stop, distance = nearest_stop(row['journey_pattern_id'],
-                                              row['latitude'],
-                                              row['longitude'],
-                                              max_dist=30)
-                if stop == None or distance == None:
-                    self.__df.set_value(index, 'distance_from_stop', -1)
-                    # drop row ?
-                    #self.__df.drop(index, inplace=True)
-                    continue
-                # max distance = 30 because AVL is only accurate within 30 meters
-            except ValueError:
-                # drop row ?
-                #self.__df.drop(index, inplace=True)
-                continue
-
-            self.__df.set_value(index, 'stop_id', stop)
-            self.__df.set_value(index, 'distance_from_stop', distance)
-
-    def remove_null_stops(self):
-        """
-        :return: updates dataframe removing stop_ids that are null
-        """
-        self.__df = self.__df.loc[(self.__df['distance_from_stop'] != -1)]
-        self.__df = self.__df.loc[(self.__df['distance_from_stop'] != None)]
-        self.__df.dropna(axis=0, how='any', subset=['distance_from_stop'])
 
     def add_datetime(self):
         self.__df['datetime'] = pd.to_datetime(self.__df['timestamp'], unit='s')
@@ -154,4 +121,3 @@ def main():
     bs.to_csv('../datasets/output_files/base_table.csv')
     return bs
 
-main()

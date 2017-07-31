@@ -30,6 +30,8 @@ class Clean():
 
         # drop journey pattern ids that are null
         self.__df = self.__df[self.__df.journey_pattern_id != 'null']
+        self.__df = self.__df[self.__df.journey_pattern_id != None]
+        self.__df = self.__df.drop(self.__df.index[self.__df['journey_pattern_id'].isnull()])
         self.__df = self.__df[self.__df.stop_id != 'null']
 
         #reduce timestamp from milliseconds to seconds
@@ -50,7 +52,6 @@ class Clean():
 
         # drop unwanted columns
         self.__df.drop(unwanted, axis=1, inplace=True)
-        print("JP CHECK: ", self.__df['journey_pattern_id'].head(10))
 
     def midnight_journeys_helper(self, row):
         """
@@ -80,10 +81,9 @@ class Clean():
         # time between rows
         self.__df['between_time'] = self.__df['next_timestamp'] - self.__df['timestamp']
 
-        # what does this line do?
+        # stops two journeys from being put together if the between_time is longer than it should be
         self.__df = self.__df.drop(self.__df.index[self.__df['between_time'] > 120])
         self.__df.drop(['next_timestamp', 'between_time'], axis=1, inplace=True)
-        print("JP CHECK: ", self.__df['journey_pattern_id'].head(10))
 
     def remove_incomplete_runs(self):
         """
@@ -92,7 +92,6 @@ class Clean():
         df_grouped = self.__df.groupby(['vehicle_journey_id', 'time_frame', 'journey_pattern_id'])
         df_short_journeys = df_grouped.filter(lambda x: len(x) < 45)
         self.__df = pd.concat([self.__df, df_short_journeys]).drop_duplicates(keep=False)
-        print("JP CHECK: ", self.__df['journey_pattern_id'].head(10))
 
     def handle_outlier_journeys(self):
         """Function to deal with outlier journeys - very long or very far"""
@@ -128,6 +127,4 @@ def main():
     cleaned_df.to_csv('../datasets/output_files/clean_df.csv')
     print("Finishing up...")
     print(time.time())
-    return clean_df
-
-main()
+    return cleaned_df
