@@ -1,46 +1,69 @@
-"""
-Testing suite for data cleaning process
-"""
+"""Testing suite for data cleaning process 
+Write tests before implementing functions
+and refactor as we go"""
+
+# pd.to_datetime(df['timestamp'], unit='s')
 
 import unittest
 import pandas as pd
-from data_cleaning import Clean, main
+import data_cleaning as dc
 
-cdf = main()
+df = pd.read_csv('../datasets/siri.20121106.csv')
 
 class test_data_cleaning(unittest.TestCase):
-
     def test_prep_df(self):
-        # check return type is a pandas dataframe
-        self.assertEqual(str(type(cdf)), "<class 'pandas.core.frame.DataFrame'>")
+        df = dc.prep_df()
+        self.assertEqual(df.columns, ['timestamp', 'line_id', 'direction', 'journey_pattern_id',
+    'time_frame', 'vehicle_journey_id', 'operator', 'congestion', 'longitude',
+    'latitude', 'delay', 'block_id', 'vehicle_id', 'stop_id', 'at_stop'])
 
-        # check null journey_patterns are removed
-        null_journeys = cdf['journey_pattern_id'].isnull().sum()
-        self.assertEqual(null_journeys, 0)
-
-        # check null stop_ids are removed
-        null_stops = cdf['stop_id'].isnull().sum()
-        self.assertEqual(null_stops, 0)
-
-        # check mixed type columns have been fixed
-        jp_type = cdf['journey_pattern_id'].dtype
-        stop_type = cdf['stop_id'].dtype
-        self.assertEqual(jp_type, 'object')
-        self.assertEqual(stop_type, 'int64')
+    def test_concat_dataframes(self):
+        pass
 
     def test_drop_columns(self):
-        columns = cdf.columns
-        print(columns)
-        self.assertEqual(columns, ['unnamed', 'timestamp', 'journey_pattern_id', 'time_frame', 'vehicle_journey_id',
-                                   'longitude', 'latitude', 'stop_id'])
+        pass
 
     def test_deal_with_midnight_journeys(self):
         pass
 
-    def test_remove_incomplete_runs(self):
-        df_grouped = cdf.groupby(['vehicle_journey_id', 'time_frame', 'journey_pattern_id'])
-        df_short_journeys = df_grouped.filter(lambda x: len(x) < 45)
-        self.assertEqual(len(df_short_journeys), 0)
+    def test_groupby_df(self):
+        pass
 
+    def test_coor(self):
+        pass
 
+    def test_add_distance_all_runs(self):
+        pass
 
+    def test_add_mean_distance(self):
+        pass
+
+    def test_add_nearest_stop(self):
+        pass
+
+    def add_filter_down_data(self):
+        pass
+
+    def test_add_time_column(self):
+        pass
+
+    def test_add_datetime_columns(self):
+        pass
+
+    def test_add_time_bin_column(self):
+        pass
+
+    def test_add_weather_columns(self):
+        pass
+
+    def test_add_day_of_week_columns(self):
+        pass
+
+    def test_add_hour_column(self):
+        pass
+
+    def test_add_congestion_features(self):
+        pass
+
+    def test_main(self):
+        pass
