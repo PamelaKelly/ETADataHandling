@@ -42,12 +42,13 @@ def scrape_timetable(page):
 
     route_variations = tree.xpath("//div[contains(.,'Route Variations')]/p/text()")
     route_vars = []
+    route_vars_full = {}
     for route in route_variations:
         if len(route) > 3:
             code = route[:1]
+            desc = route[2:]
             route_vars.append(code)
-
-    print(route_vars)
+            route_vars_full[code] = desc
 
     timetable = {
         "direction1": {
@@ -110,14 +111,15 @@ def scrape_timetable(page):
                     if t in timetable[direction]["variations"].keys():
                         pass
                     else:
-                        timetable[direction]["variations"][t] = {"weekday": [], "saturday": [], "sunday": []}
-                    last_time = timetable[direction][last_entry].pop()
-                    if flag == "M":
-                        timetable[direction]["variations"][t]["weekday"].append(last_time)
-                    elif flag == "ST":
-                        timetable[direction]["variations"][t]["saturday"].append(last_time)
-                    elif flag == "SN":
-                        timetable[direction]["variations"][t]["sunday"].append(last_time)
+                        timetable[direction]["variations"][t] = {"description": "", "weekday": [], "saturday": [], "sunday": []}
+                        timetable[direction]["variations"][t]["description"] = route_vars_full[t]
+                        last_time = timetable[direction][last_entry].pop()
+                        if flag == "M":
+                            timetable[direction]["variations"][t]["weekday"].append(last_time)
+                        elif flag == "ST":
+                            timetable[direction]["variations"][t]["saturday"].append(last_time)
+                        elif flag == "SN":
+                            timetable[direction]["variations"][t]["sunday"].append(last_time)
 
     for t in timetable:
         print(timetable[t])

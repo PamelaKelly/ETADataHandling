@@ -16,7 +16,8 @@ bus_stops = Table('bus_stops', metadata,
 routes = Table('routes', metadata,
               Column('journey_pattern', String, primary_key=True, nullable=False),
                Column('stop_id', Integer, primary_key=True, nullable=False),
-               Column('position_on_route', FLOAT, nullable=False))
+               Column('position_on_route', FLOAT, nullable=False),
+               Column('line_id', String, nullable=False))
 
 class database_manager():
     def __init__(self, password_file, URI, PORT, USERNAME, DB_NAME):
@@ -64,4 +65,9 @@ class database_manager():
             print("This database is empty")
             return None
 
+def helper():
+    db_obj = database_manager("password.txt", "eta.cb0ofqejduea.eu-west-1.rds.amazonaws.com", "3306",
+                                               "eta", "eta")
+    db_obj.get_tables(tables_list=['timetables'])
 
+helper()

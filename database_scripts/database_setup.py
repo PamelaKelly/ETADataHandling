@@ -6,6 +6,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.dialects.mysql.types import FLOAT, TIME
 import json
 from database_scripts import database_manager
+import pandas as pd
 
 
 #################### Defining Tables for the Database ###############################
@@ -16,9 +17,9 @@ class Stop(Base):
 
     stop_id = Column(Integer, primary_key=True, nullable=False)
     stop_address = Column(String, nullable=False)
-    latitude = Column(FLOAT, primary_key=True, nullable=False)
-    longitude = Column(FLOAT, primary_key=True, nullable=False)
-    year = Column(Integer, nullable=False)
+    latitude = Column(FLOAT, nullable=False)
+    longitude = Column(FLOAT, nullable=False)
+    year = Column(Integer, primary_key=True, nullable=False)
 
     def __repr__(self):
         return """
@@ -36,13 +37,15 @@ class Route(Base):
     journey_pattern = Column(String, primary_key=True, nullable=False)
     stop_id = Column(Integer, primary_key=True, nullable=False)
     position_on_route = Column(FLOAT, nullable=False)
+    line_id = Column(String, nullable=False)
 
     def __repr__(self):
         return """
         <Route=(journey_pattern=%s,
         stop_id=%s,
-        position_on_route=%s>
-        """%(self.journey_pattern, self.stop_id, self.position_on_route)
+        position_on_route=%s,
+        line_id=%s>
+        """%(self.journey_pattern, self.stop_id, self.position_on_route, self.line_id)
 
 class Timetable(Base):
     __tablename__ = 'timetables'
@@ -121,37 +124,81 @@ class database_setup():
             print(route)
             stop_ids = routes_json[route].keys()
             for stop in stop_ids:
-                distance = routes_json[route][stop]
-                try:
-                    route_obj = Route(journey_pattern=route,
-                                stop_id=stop,
-                                position_on_route=distance)
+                if stop == "line_id":
+                    line_id = routes_json[route]["line_id"]
+                else:
+                    distance = routes_json[route][stop]
+                    try:
+                        route_obj = Route(journey_pattern=route,
+                                    stop_id=stop,
+                                    position_on_route=distance,
+                                    line_id = line_id)
 
-                    session.add(route_obj)
-                    session.commit()
+                        session.add(route_obj)
+                        session.commit()
 
-                except Exception as e:
-                    print("Error in the insert_routes function")
-                    print("Error Type: ", type(e))
-                    print("Error Details: ", e)
-                    session.rollback()
-                    continue
+                    except Exception as e:
+                        print("Error in the insert_routes function")
+                        print("Error Type: ", type(e))
+                        print("Error Details: ", e)
+                        session.rollback()
+                        continue
+        session.close()
+        engine.dispose()
+
+    def populate_timetables(self, timetable_info):
+        """
+        :param timetable_info: a pandas dataframe with all timetable information
+        :return: updates the database with the timetable information
+        """
+        engine = self.__db.connect_engine()
+        Session = sessionmaker(bind=engine)
+        session = Session()
+
+        print("Number of rows: ", timetable_info.shape)
+
+        for row in timetable_info.iterrows():
+            journey_pattern = row[1]['Journey_Pattern_ID']
+            departure_time = row[1]['Time']
+            day_category = row[1]['week_cate']
+
+            try:
+                timetable_object = Timetable(journey_pattern=journey_pattern,
+                                             departure_time=departure_time,
+                                             day_category=day_category)
+
+                session.add(timetable_object)
+                session.commit()
+
+            except Exception as e:
+                print("Error in the populate timetables function")
+                print("Error type: ", type(e))
+                print("Error details: ", e)
+                session.rollback()
+                continue
+
         session.close()
         engine.dispose()
 
     def send_query(self, query):
         """Sends a query to the database given the sql query"""
         eng = self.__db.connect_engine()
-        res = eng.execute(query).fetchall()
+        eng.execute(query)
         eng.dispose()
-        return res
+        return
 
 
 def main():
     """Run all steps necessary to create and populate the database"""
     db_obj = database_manager.database_manager("password.txt", "eta.cb0ofqejduea.eu-west-1.rds.amazonaws.com", "3306", "eta", "eta")
     db = database_setup(db_obj)
-    db.populate_stops('../datasets/clean_stops_2017.txt', 2017)
-    db.populate_stops('../datasets/clean_stops_2012.txt', 2012)
-    db.populate_routes('../datasets/routes.txt')
+    #db.populate_stops('../datasets/clean_stops_2017.txt', 2017)
+    #db.populate_stops('../datasets/clean_stops_2012.txt', 2012)
+    #db.populate_routes('../datasets/output_files/routes.txt')
+    timetables = pd.read_csv('../datasets/output_files/time_table.csv', dtype={'Journey_Pattern_ID':object})
+    db.populate_timetables(timetables)
+
+main()
+
+
 
