@@ -1,6 +1,6 @@
 """ Python Module for Dealing with our Amazon RDS Instance """
 
-from sqlalchemy import create_engine, Column, Integer, String
+from sqlalchemy import Column, Integer, String, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.dialects.mysql.types import FLOAT, TIME
@@ -16,7 +16,7 @@ class Stop(Base):
     __tablename__ = 'bus_stops'
 
     stop_id = Column(Integer, primary_key=True, nullable=False)
-    stop_address = Column(String, nullable=False)
+    stop_address = Column(String(100), nullable=False)
     latitude = Column(FLOAT, nullable=False)
     longitude = Column(FLOAT, nullable=False)
     year = Column(Integer, primary_key=True, nullable=False)
@@ -34,10 +34,10 @@ class Stop(Base):
 class Route(Base):
     __tablename__ = 'routes'
 
-    journey_pattern = Column(String, primary_key=True, nullable=False)
-    stop_id = Column(Integer, primary_key=True, nullable=False)
+    journey_pattern = Column(String(100), primary_key=True, nullable=False)
+    stop_id = Column(Integer, ForeignKey("bus_stops.stop_id"), primary_key=True, nullable=False)
     position_on_route = Column(FLOAT, nullable=False)
-    line_id = Column(String, nullable=False)
+    line_id = Column(String(10), nullable=False)
 
     def __repr__(self):
         return """
@@ -48,18 +48,24 @@ class Route(Base):
         """%(self.journey_pattern, self.stop_id, self.position_on_route, self.line_id)
 
 class Timetable(Base):
-    __tablename__ = 'timetables'
+    __tablename__ = 'timetables_dublin_bus'
 
-    journey_pattern = Column(String(100), primary_key=True, nullable=False)
+    journey_pattern = Column(String(100), ForeignKey("routes.journey_pattern"), primary_key=True, nullable=False)
     departure_time = Column(TIME, primary_key=True, nullable=False)
     day_category = Column(String(100), primary_key=True, nullable=False)
+    first_stop = Column(Integer, nullable=False)
+    last_stop = Column(Integer, nullable=False)
+    line = Column(String(10), nullable=False)
 
     def __repr__(self):
         return """
         <Timetable=(journey_pattern=%s,
         departure_time=%s,
-        day_category=%s>
-        """%(self.journey_pattern, self.departure_time, self.day_category)
+        day_category=%s,
+        first_stop=%s,
+        last_stop=%s,
+        line=%s>
+        """%(self.journey_pattern, self.departure_time, self.day_category, self.first_stop, self.last_stop, self.line)
 
 
 #####################################################################################
@@ -76,6 +82,13 @@ class database_setup():
         """A function to create the tables defined above """
         eng = self.__db.connect_engine()
         Base.metadata.create_all(eng)
+        eng.dispose()
+
+    def clear_database(self):
+        eng = self.__db.connect_engine()
+        for tbl in reversed(Base.metadata.sorted_tables):
+            print(tbl)
+            eng.execute(tbl.delete())
         eng.dispose()
 
     def populate_stops(self, stop_info, year):
@@ -158,14 +171,20 @@ class database_setup():
         print("Number of rows: ", timetable_info.shape)
 
         for row in timetable_info.iterrows():
-            journey_pattern = row[1]['Journey_Pattern_ID']
-            departure_time = row[1]['Time']
-            day_category = row[1]['week_cate']
+            journey_pattern = row[1]['journey_pattern']
+            departure_time = row[1]['departure_time']
+            day_category = row[1]['day_category']
+            line_id = row[1]['line']
+            first_stop = row[1]['first_stop']
+            last_stop = row[1]['last_stop']
 
             try:
                 timetable_object = Timetable(journey_pattern=journey_pattern,
                                              departure_time=departure_time,
-                                             day_category=day_category)
+                                             day_category=day_category,
+                                             first_stop=first_stop,
+                                             last_stop=last_stop,
+                                             line=line_id)
 
                 session.add(timetable_object)
                 session.commit()
@@ -192,10 +211,16 @@ def main():
     """Run all steps necessary to create and populate the database"""
     db_obj = database_manager.database_manager("password.txt", "eta.cb0ofqejduea.eu-west-1.rds.amazonaws.com", "3306", "eta", "eta")
     db = database_setup(db_obj)
-    #db.populate_stops('../datasets/clean_stops_2017.txt', 2017)
-    #db.populate_stops('../datasets/clean_stops_2012.txt', 2012)
-    #db.populate_routes('../datasets/output_files/routes.txt')
-    timetables = pd.read_csv('../datasets/output_files/time_table.csv', dtype={'Journey_Pattern_ID':object})
+    print("Creating Tables...")
+    db.create_tables()
+    print("Populating stops...")
+    db.populate_stops('../datasets/output_files/clean_stops_2017.txt', 2017)
+    db.populate_stops('../datasets/input_files/2012_stops.txt', 2012)
+    print("Populating routes...")
+    db.populate_routes('../datasets/output_files/routes.txt')
+    db_obj.get_tables(tables_list=['bus_stops', 'routes'])
+    timetables = pd.read_csv('../datasets/output_files/time_table_2.csv', dtype={'Journey_Pattern_ID':object})
+    print("Populating timetables...")
     db.populate_timetables(timetables)
 
 main()

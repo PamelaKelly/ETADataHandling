@@ -15,7 +15,7 @@ bus_stops = Table('bus_stops', metadata,
 
 routes = Table('routes', metadata,
               Column('journey_pattern', String, primary_key=True, nullable=False),
-               Column('stop_id', Integer, primary_key=True, nullable=False),
+               Column('stop_id', Integer, ForeignKey("bus_stops.stop_id"), primary_key=True, nullable=False),
                Column('position_on_route', FLOAT, nullable=False),
                Column('line_id', String, nullable=False))
 
@@ -46,7 +46,7 @@ class database_manager():
         :return: a list of all tables in the database and descriptions
         for each of those tables
         """
-        if len(tables_list) > 0:
+        if tables_list != None:
             sql = "SHOW TABLES;"
             eng = self.connect_engine()
             tables = eng.execute(sql).fetchall()
@@ -69,5 +69,9 @@ def helper():
     db_obj = database_manager("password.txt", "eta.cb0ofqejduea.eu-west-1.rds.amazonaws.com", "3306",
                                                "eta", "eta")
     db_obj.get_tables(tables_list=['timetables'])
+    sql = "ALTER TABLE timetables ADD CONSTRAINT fk_timetable_routes FOREIGN KEY (journey_pattern) REFERENCES routes(journey_pattern) ON UPDATE CASCADE ON DELETE CASCADE;"
+    eng = db_obj.connect_engine()
+    eng.execute(sql)
+    db_obj.get_tables(tables_list=['timetables'])
 
-helper()
+

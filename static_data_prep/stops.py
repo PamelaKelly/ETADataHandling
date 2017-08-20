@@ -9,6 +9,7 @@ class Stops():
     def get_stops(self):
         stops_dict = {}
         if self.__year == 2012:
+            # don't think cleaning this is necessary anymore Conan updated to a clean stops file
             for index, row in self.__df.iterrows():
                 stop_address = row['Name without locality'] + ", " + row['Locality']
                 stop_id = row['Stop No']
