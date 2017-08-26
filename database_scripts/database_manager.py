@@ -28,7 +28,35 @@ class database_manager():
         self.__DB_NAME = DB_NAME
 
     def __str__(self):
-        return "Database Name: " + self.__DB_NAME + " on port: " + self.__PORT
+        return "Database Name: " + self.__DB_NAME + " on port: " + self.__PORT + " \nEndpoint: " + self.__URI
+
+    def get_uri(self):
+        return self.__URI
+
+    def set_uri(self, uri_new):
+        self.__URI = uri_new
+        return self.__URI
+
+    def get_port(self):
+        return self.__PORT
+
+    def set_port(self, port_new):
+        self.__PORT = port_new
+        return self.__PORT
+
+    def get_username(self):
+        return self.__USERNAME
+
+    def set_username(self, username_new):
+        self.__USERNAME = username_new
+        return self.__USERNAME
+
+    def get_dbname(self):
+        return self.__DB_NAME
+
+    def set_dbname(self, dbname_new):
+        self.__DB_NAME = dbname_new
+        return self.__DB_NAME
 
     def connect_engine(self):
         """
@@ -46,32 +74,26 @@ class database_manager():
         :return: a list of all tables in the database and descriptions
         for each of those tables
         """
-        if tables_list != None:
-            sql = "SHOW TABLES;"
-            eng = self.connect_engine()
-            tables = eng.execute(sql).fetchall()
-            print("Tables in the Database: \n", tables)
-
-            table_descriptions = []
-            for table in tables_list:
-                sql = "DESCRIBE " + table + ";"
-                table_desc = eng.execute(sql).fetchall()
-                print("Table Name: ", table, "\nTable Details: ", table_desc)
-                table_descriptions.append(table_desc)
-
-            eng.dispose()
-            return tables, table_descriptions
-        else:
+        sql = "SHOW TABLES;"
+        eng = self.connect_engine()
+        tables = eng.execute(sql).fetchall()
+        if (len(tables) < 1):
             print("This database is empty")
+            eng.dispose()
             return None
+        else:
+            print("Tables in the Database: \n", tables)
+            if tables_list != None:
+                table_descriptions = []
+                for table in tables_list:
+                    sql = "DESCRIBE " + table + ";"
+                    table_desc = eng.execute(sql).fetchall()
+                    print("Table Name: ", table, "\nTable Details: ", table_desc)
+                    table_descriptions.append(table_desc)
 
-def helper():
-    db_obj = database_manager("password.txt", "eta.cb0ofqejduea.eu-west-1.rds.amazonaws.com", "3306",
-                                               "eta", "eta")
-    db_obj.get_tables(tables_list=['timetables'])
-    sql = "ALTER TABLE timetables ADD CONSTRAINT fk_timetable_routes FOREIGN KEY (journey_pattern) REFERENCES routes(journey_pattern) ON UPDATE CASCADE ON DELETE CASCADE;"
-    eng = db_obj.connect_engine()
-    eng.execute(sql)
-    db_obj.get_tables(tables_list=['timetables'])
+                eng.dispose()
+                return tables, table_descriptions
+            else:
+                return tables
 
 

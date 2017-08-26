@@ -1,8 +1,6 @@
 """
-This file parses the final base table for route information.
-A route is defined by a journey pattern id and the corresponding information provided
-are the stops on that rooute and the distance from the terminus to each stop
-Takes one week of data - pre cleaned
+Module for extracting the route information from the raw data
+Includes journey patterns, stops on those routes and distances from terminus to each stop
 """
 
 import pandas as pd

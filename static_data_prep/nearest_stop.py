@@ -1,3 +1,8 @@
+"""
+Python module to add the nearest stop and distance from stop to every row in the cleaned
+data set - this is a pre preparation of the data to facilitate extracting the routes from the raw data.
+"""
+
 import pandas as pd
 import json
 from stop_lookup.stop_lookup import nearest_stop

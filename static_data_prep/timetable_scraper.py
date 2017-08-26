@@ -1,3 +1,5 @@
+"""Python module for scraping the 2012 timetables from web archive"""
+
 import lxml
 from lxml import html
 import requests

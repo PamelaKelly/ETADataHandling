@@ -1,4 +1,5 @@
-""" Python Module for Dealing with our Amazon RDS Instance """
+""" Python Module for setting up the database specific to this project
+ and populating all of the tables with the appropriate data"""
 
 from sqlalchemy import Column, Integer, String, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
@@ -78,6 +79,12 @@ class database_setup():
         """
         self.__db = db_mang
 
+    def __str__(self):
+        """
+        :return: A string containing database name, port and endpoint.
+        """
+        return self.__db
+
     def create_tables(self):
         """A function to create the tables defined above """
         eng = self.__db.connect_engine()
@@ -87,7 +94,7 @@ class database_setup():
     def clear_database(self):
         eng = self.__db.connect_engine()
         for tbl in reversed(Base.metadata.sorted_tables):
-            print(tbl)
+            # reverse order to avoid foreign key constraints causing error
             eng.execute(tbl.delete())
         eng.dispose()
 
@@ -223,7 +230,10 @@ def main():
     print("Populating timetables...")
     db.populate_timetables(timetables)
 
-main()
+def temp():
+    db_obj = database_manager.database_manager("password.txt", "eta.cb0ofqejduea.eu-west-1.rds.amazonaws.com", "3306", "eta", "eta")
+    db_obj.get_tables(tables_list=None)
 
+temp()
 
 

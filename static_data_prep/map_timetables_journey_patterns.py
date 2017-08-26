@@ -1,3 +1,7 @@
+"""
+Attempt to match scraped timetables to journey pattern ids - unsuccessful
+"""
+
 import json
 import re
 

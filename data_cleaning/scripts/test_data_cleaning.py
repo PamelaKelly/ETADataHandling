@@ -34,9 +34,6 @@ class test_data_cleaning(unittest.TestCase):
         self.assertEqual(columns, ['unnamed', 'timestamp', 'journey_pattern_id', 'time_frame', 'vehicle_journey_id',
                                    'longitude', 'latitude', 'stop_id'])
 
-    def test_deal_with_midnight_journeys(self):
-        pass
-
     def test_remove_incomplete_runs(self):
         df_grouped = cdf.groupby(['vehicle_journey_id', 'time_frame', 'journey_pattern_id'])
         df_short_journeys = df_grouped.filter(lambda x: len(x) < 45)
