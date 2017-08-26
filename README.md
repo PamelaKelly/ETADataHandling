@@ -1,8 +1,10 @@
 # ETA_Data_Handling
 Data Cleaning and Modelling for ETA Dublin Bus Project
 
-Please Note: Datasets are not included as the size of these was too large.
-If you would like to run the scripts locally please contact us for the datasets.
+Github Repository: https://github.com/PamelaKelly/ETA_Data_Handling
+
+Please Note: Datasets are not included. If you would like to run any of the scripts locally please contact
+us for the datasets.
 
 Guide to Folders:
 
@@ -22,7 +24,9 @@ test_data_cleaning.py - used to debug during the data cleaning process
 test_feature_engineering.py - used to debug during the feature engineering process
 
 stop_lookup/
-helper package to enable the use of nearest neighbour lookups
+stop_lookup.py - implements nearest neighbour search functionality for stops
+__route_tree_builder.py - builds the trees that represent route information for quick searching
+test_stop_lookup.py - tests the stop_lookup module
 
 2. Data Modelling
 
